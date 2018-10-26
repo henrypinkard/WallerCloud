@@ -1,11 +1,23 @@
 #TAR, Compress, split into 1 GB chunks, and upload to WallerGroup Team Drive
 #Compress argument (either file or folder), send it to #WallerTeamDrive:/data/USERNAME/FILEORFOLDER_split
+#0 arguments: compress current direcotry and send to default path in wallercloud
+#1 argument: the path of file or directory to compress
+#2 argspuments: path to crompress, custom path in wallercloud
+
 
 if [ $# -eq 0 ]; then
     PATHTOCOMPRESS="$(pwd)"
 else
 	PATHTOCOMPRESS="$1"
 fi
+if [ $# -eq 2 ]; then
+    CLOUDDIR="$2"
+else
+	CLOUDDIR="$USER"
+fi
+
+
+
 RELATIVENAME="$(basename "$PATHTOCOMPRESS")"
 
 
@@ -32,7 +44,7 @@ rclone sha1sum "$COMPRESSEDFILEFULLPATH" > "${SPLITDIR}/${RELATIVENAME}_sha1.txt
 #upload
 # date
 # echo "Copying to: $CLOUDPATH"
-CLOUDPATH="wallercloud:$USER/${RELATIVENAME}_split"
+CLOUDPATH="wallercloud:$CLOUDDIR/${RELATIVENAME}_split"
 rclone copy "$SPLITDIR" "$CLOUDPATH" -v
 
 #Delete temp files--compressed file and split files

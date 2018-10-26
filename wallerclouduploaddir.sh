@@ -13,9 +13,9 @@ else
 fi
 
 #just the folder name, not absolute path
-DIRNAME="$(basename "$PATHTOCOMPRESS")"
+DIRNAME="$(basename "$DIRPATH")"
 
 for file in "$DIRPATH"/*; do
   echo "Processing:   $file"
-  wallercloudupload.sh "$file"
+  wallercloudupload.sh "$file" "$USER/$DIRNAME"
 done
