@@ -31,7 +31,7 @@ tar cf - "$PATHTOCOMPRESS" | pv -s $(du -sb "$PATHTOCOMPRESS" | awk '{print $1}'
 
 # #split into 1 GB chunks for upload
 # # date
-# echo "Splitting file..."
+echo "Splitting file..."
 SPLITDIR="$PATHTOCOMPRESS"_split
 mkdir "$SPLITDIR"
 split -b 1024m "$COMPRESSEDFILEFULLPATH" "${SPLITDIR}/${RELATIVENAME}_fragment"
@@ -43,8 +43,8 @@ rclone sha1sum "$COMPRESSEDFILEFULLPATH" > "${SPLITDIR}/${RELATIVENAME}_sha1.txt
 
 #upload
 # date
-# echo "Copying to: $CLOUDPATH"
 CLOUDPATH="wallercloud:$CLOUDDIR/${RELATIVENAME}_split"
+echo "Copying to: $CLOUDPATH"
 rclone copy "$SPLITDIR" "$CLOUDPATH" -v
 
 #Delete temp files--compressed file and split files

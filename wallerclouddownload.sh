@@ -1,6 +1,9 @@
 #script for downloading a bunch of partial files from waller lab team drive, recombining them, and checking 
 #their hash to make sure it worked correctly
 
+#TODO: is this sensitive to trailing slahes?
+
+
 #Full path in wallercloud (from root that rclone sees) e.g. 2018-6-6 Experiment folder/experiment name
 DIRFULLPATH=$1
 #remove gdrive if there
