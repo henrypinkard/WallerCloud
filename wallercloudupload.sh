@@ -4,7 +4,6 @@
 #1 argument: the path of file or directory to compress
 #2 argspuments: path to crompress, custom path in wallercloud
 
-
 if [ $# -eq 0 ]; then
     PATHTOCOMPRESS="$(pwd)"
 else
@@ -17,39 +16,29 @@ else
 fi
 
 
-
 RELATIVENAME="$(basename "$PATHTOCOMPRESS")"
-
 
 #Compress all files in foldername to here
 COMPRESSEDFILEFULLPATH="$PATHTOCOMPRESS.tar.gz"
 
 # tar and compress while showing progress
 # date
-echo "Compressing"
-tar cf - "$PATHTOCOMPRESS" | pv -s $(du -sb "$PATHTOCOMPRESS" | awk '{print $1}') | pigz -4 -> "$COMPRESSEDFILEFULLPATH"
+echo "Compressing..."
+tar cf - "$PATHTOCOMPRESS" | pv -s $(du -sk "$PATHTOCOMPRESS" | awk '{print $1}')k | pigz -4 -> "$COMPRESSEDFILEFULLPATH"
 
 SPLITDIR="$PATHTOCOMPRESS"_split
-#Hash
-# date
-echo "Computing SHA1..."
-rclone sha1sum "$COMPRESSEDFILEFULLPATH" > "${SPLITDIR}/${RELATIVENAME}_sha1.txt"
-
-
-# #split into 1 GB chunks for upload
-# # date
-echo "Splitting file..."
 mkdir "$SPLITDIR"
-split -b 1024m "$COMPRESSEDFILEFULLPATH" "${SPLITDIR}/${RELATIVENAME}_fragment"
+
+#Hash and split in a single command
+echo "Hashing and splitting file..."
+pv "$COMPRESSEDFILEFULLPATH" | tee >(shasum > "${SPLITDIR}/${RELATIVENAME}_sha1.txt") | split -b 1024m - "${SPLITDIR}/${RELATIVENAME}_fragment"
 
 #upload
-# date
 CLOUDPATH="wallercloud:$CLOUDDIR/${RELATIVENAME}_split"
 echo "Copying to: $CLOUDPATH"
 rclone copy "$SPLITDIR" "$CLOUDPATH" -v
 
 #Delete temp files--compressed file and split files
-# date
 echo "Cleaning up..."
 rm -rf "$COMPRESSEDFILEFULLPATH"
 rm -rf "$SPLITDIR"
