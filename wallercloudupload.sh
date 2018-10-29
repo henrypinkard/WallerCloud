@@ -21,17 +21,13 @@ RELATIVENAME="$(basename "$PATHTOCOMPRESS")"
 #Compress all files in foldername to here
 COMPRESSEDFILEFULLPATH="$PATHTOCOMPRESS.tar.gz"
 
-# tar and compress while showing progress
-# date
-echo "Compressing..."
-tar cf - "$PATHTOCOMPRESS" | pv -s $(du -sk "$PATHTOCOMPRESS" | awk '{print $1}')k | pigz -4 -> "$COMPRESSEDFILEFULLPATH"
-
 SPLITDIR="$PATHTOCOMPRESS"_split
 mkdir "$SPLITDIR"
 
-#Hash and split in a single command
-echo "Hashing and splitting file..."
-pv "$COMPRESSEDFILEFULLPATH" | tee >(shasum > "${SPLITDIR}/${RELATIVENAME}_sha1.txt") | split -b 1024m - "${SPLITDIR}/${RELATIVENAME}_fragment"
+# tar and compress while showing progress
+echo "Compressing, hashing, and splitting file"
+tar cf - "$PATHTOCOMPRESS" | pv -s $(du -sk "$PATHTOCOMPRESS" | awk '{print $1}')k | pigz -4 - | tee >(shasum > "${SPLITDIR}/${RELATIVENAME}_sha1.txt") | split -b 1024m - "${SPLITDIR}/${RELATIVENAME}_fragment"
+
 
 #upload
 CLOUDPATH="wallercloud:$CLOUDDIR/${RELATIVENAME}_split"
