@@ -29,17 +29,18 @@ COMPRESSEDFILEFULLPATH="$PATHTOCOMPRESS.tar.gz"
 echo "Compressing"
 tar cf - "$PATHTOCOMPRESS" | pv -s $(du -sb "$PATHTOCOMPRESS" | awk '{print $1}') | pigz -4 -> "$COMPRESSEDFILEFULLPATH"
 
-# #split into 1 GB chunks for upload
-# # date
-echo "Splitting file..."
 SPLITDIR="$PATHTOCOMPRESS"_split
-mkdir "$SPLITDIR"
-split -b 1024m "$COMPRESSEDFILEFULLPATH" "${SPLITDIR}/${RELATIVENAME}_fragment"
-
 #Hash
 # date
 echo "Computing SHA1..."
 rclone sha1sum "$COMPRESSEDFILEFULLPATH" > "${SPLITDIR}/${RELATIVENAME}_sha1.txt"
+
+
+# #split into 1 GB chunks for upload
+# # date
+echo "Splitting file..."
+mkdir "$SPLITDIR"
+split -b 1024m "$COMPRESSEDFILEFULLPATH" "${SPLITDIR}/${RELATIVENAME}_fragment"
 
 #upload
 # date
