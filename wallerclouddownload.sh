@@ -33,7 +33,6 @@ if cmp -n 40 -s "${PREFIX}_sha1_reconstructed.txt" "${PREFIX}_sha1.txt" ; then
 	rm "${PREFIX}_sha1.txt"
 	#unzip and untar file, showing progress
 	echo "Decompressing..."
-	# pv "${FILENAME}" | pigz -dc - | tar -xf - -C "${PARENTDIRNAME}/"
 	pv "${FILENAME}" | pigz -dc - | tar -xf - 
 
 	#delete the compressed version

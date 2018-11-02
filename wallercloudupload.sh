@@ -15,7 +15,6 @@ else
 	CLOUDDIR="$USER"
 fi
 
-
 RELATIVENAME="$(basename "$PATHTOCOMPRESS")"
 
 #Compress all files in foldername to here
@@ -26,8 +25,10 @@ mkdir "$SPLITDIR"
 
 # tar and compress while showing progress
 echo "Compressing, hashing, and splitting file"
-tar cf - "$PATHTOCOMPRESS" | pv -s $(du -sk "$PATHTOCOMPRESS" | awk '{print $1}')k | pigz -4 - | tee >(shasum > "${SPLITDIR}/${RELATIVENAME}_sha1.txt") | split -b 1024m - "${SPLITDIR}/${RELATIVENAME}_fragment"
-
+#change directory so long paths dont appear in archive
+DIRNAME="$(dirname "$PATHTOCOMPRESS")"/
+RELATIVEPATH=${PATHTOCOMPRESS#"$DIRNAME"}
+tar cf - -C "$DIRNAME" "$RELATIVEPATH" | pv -s $(du -sk "$PATHTOCOMPRESS" | awk '{print $1}')k | pigz -4 - | tee >(shasum > "${SPLITDIR}/${RELATIVENAME}_sha1.txt") | split -b 1024m - "${SPLITDIR}/${RELATIVENAME}_fragment"
 
 #upload
 CLOUDPATH="wallercloud:$CLOUDDIR/${RELATIVENAME}_split"
