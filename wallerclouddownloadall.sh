@@ -1,3 +1,4 @@
+#!/bin/bash
 #Download and reconstruct a bunch of seperately split files/sirectories
 
 DIRPATH="$1"
@@ -16,6 +17,6 @@ cd "$RELATIVENAME"
 IFS=$'\n'
 for file in $(rclone lsf "$DIRPATH"); do
   echo "Processing:   $DIRPATH/$file"
-  wallerclouddownload.sh "$DIRPATH/$file" 
+  wallerclouddownload.sh "$DIRPATH/$file"
 done
 unset IFS

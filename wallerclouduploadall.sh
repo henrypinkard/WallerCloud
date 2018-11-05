@@ -1,3 +1,5 @@
+#!/bin/bash
+
 #For every file in: the directory supplied as the first argument OR the current working direcory if no arguments given
 #TAR, Compress, split into 1 GB chunks, and upload to WallerGroup Team Drive
 #WallerTeamDrive:/data/USERNAME/DIRNAME/FILEORFOLDER_split

@@ -1,3 +1,5 @@
+#!/bin/bash
+
 #TAR, Compress, split into 1 GB chunks, and upload to WallerGroup Team Drive
 #Compress argument (either file or folder), send it to #WallerTeamDrive:/data/USERNAME/FILEORFOLDER_split
 #0 arguments: compress current direcotry and send to default path in wallercloud
