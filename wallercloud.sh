@@ -123,14 +123,20 @@ function downloadDirectory() {
 function show_help() {
   echo "USAGE:"
   echo "   wallercloud --ls [dir]  :   Lists all files in a remote dir."
-  echo "   wallercloud --ping (-p) :   Pings the remote server."
   echo "   wallercloud --download (-d) :   Downloads a path/file the remote server."
   echo "   wallercloud --upload (-u) :   Downloads a path/file the remote server."
 }
 
+# List directories on remote
 function list_dir() {
-  rclone lsd wallercloud:
+  rclone lsd wallercloud:${WALLER_CLOUD_USERNAME}/$1
 }
+
+# Show help if command is passed with no arguments
+if [[ $# -eq 0 ]] ; then
+    show_help
+    exit 0
+fi
 
 # Check if username is set
 if [ -z ${WALLER_CLOUD_USERNAME+x} ];
@@ -157,22 +163,26 @@ key="$1"
 
 case $key in
     -d|--download)
-    downloadFile
-    shift # past argument
-    shift # past value
-    ;;
-    -r|--downloaddir)
-    downloadDirectory
+    if [[ -d $2 ]]; then
+        downloadDirectory $2
+    elif [[ -f $2 ]]; then
+        downloadFile $2
+    else
+        echo "$2 is not a valid path to a file or directory!"
+        exit 1
+    fi
     shift # past argument
     shift # past value
     ;;
     -u|--upload)
-    uploadFile
-    shift # past argument
-    shift # past value
-    ;;
-    -l|--uploadall)
-    uploadDirectory
+    if [[ -d $2 ]]; then
+        uploadDirectory $2
+    elif [[ -f $2 ]]; then
+        uploadFile $2
+    else
+        echo "$2 is not a valid path to a file or directory!"
+        exit 1
+    fi
     shift # past argument
     shift # past value
     ;;
@@ -181,8 +191,8 @@ case $key in
     shift # past argument
     shift # past value
     ;;
-    ls|--list)
-    list_dir
+    ls|--ls)
+    list_dir $2
     shift # past argument
     shift # past value
     ;;
@@ -198,11 +208,7 @@ esac
 done
 set -- "${POSITIONAL[@]}" # restore positional parameters
 
-# echo FILE EXTENSION  = "${EXTENSION}"
-# echo SEARCH PATH     = "${SEARCHPATH}"
-# echo LIBRARY PATH    = "${LIBPATH}"
-# echo DEFAULT         = "${DEFAULT}"
-# echo "Number files in SEARCH PATH with EXTENSION:" $(ls -1 "${SEARCHPATH}"/*."${EXTENSION}" | wc -l)
+
 
 if [[ -n $1 ]]; then
     echo "Last line of file specified as non-opt/last argument:"
