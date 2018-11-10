@@ -91,7 +91,7 @@ function downloadFile() {
 
   	#delete the compressed version
   	echo "Deleting compressed version..."
-  	rm "${FILENAME}"
+  	# rm "${FILENAME}"
   	echo "Finished"
   else
   	echo "Error: SHA1s don't match"
@@ -99,23 +99,34 @@ function downloadFile() {
 }
 
 function downloadDirectory() {
-  DIRPATH="$1"
-  #remove trailing slash if presetn
+
+  # Build directory path
+  DIRPATH="wallercloud:$WALLER_CLOUD_USERNAME/$1"
+
+  # Remove trailing slash if present
   length=${#DIRPATH}
   last_char=${DIRPATH:length-1:1}
   [[ $last_char == "/" ]] && DIRPATH=${DIRPATH:0:length-1}; :
 
-
+  # Build relative path
   RELATIVENAME="$(basename "$DIRPATH")"
 
+  # Ensure relative path doesn't already exist
+  if [ -d "$RELATIVENAME" ]; then
+    echo
+    echo Path $RELATIVENAME exists, exiting.
+    exit 0
+  fi
+
+  # Make directory
   mkdir "$RELATIVENAME"
   cd "$RELATIVENAME"
 
-  #dont split on whitespace
+  # Dont split on whitespace
   IFS=$'\n'
   for file in $(rclone lsf "$DIRPATH"); do
     echo "Processing:   $DIRPATH/$file"
-    wallerclouddownload.sh "$DIRPATH/$file"
+    downloadFile "$DIRPATH/$file"
   done
   unset IFS
 }
@@ -163,14 +174,15 @@ key="$1"
 
 case $key in
     -d|--download)
-    if [[ -d $2 ]]; then
-        downloadDirectory $2
-    elif [[ -f $2 ]]; then
-        downloadFile $2
-    else
-        echo "$2 is not a valid path to a file or directory!"
-        exit 1
-    fi
+    downloadDirectory $2
+    # if [[ -d $2 ]]; then
+    #     downloadDirectory $2
+    # elif [[ -f $2 ]]; then
+    #     downloadFile $2
+    # else
+    #     echo "$2 is not a valid path to a file or directory!"
+    #     exit 1
+    # fi
     shift # past argument
     shift # past value
     ;;
