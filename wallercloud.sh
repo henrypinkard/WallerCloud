@@ -213,9 +213,10 @@ function check_username() {
 
 function show_help() {
   echo "USAGE:"
+  echo "   wallercloud --help   :   Shows this information."
   echo "   wallercloud --ls [dir]  :   Lists all files in a remote dir."
   echo "   wallercloud --download (-d) :   Downloads a path/file the remote server."
-  echo "   wallercloud --upload (-u) :   Downloads a path/file the remote server."
+  echo "   wallercloud --upload (-u) :   Uploads a path/file the remote server."
 }
 
 # List directories on remote
