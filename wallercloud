@@ -1,9 +1,0 @@
-#/bin/bash
-# This fill will eventually contain all of the functionality of the other files
-
-# USAGE: wallercloud ls [dir]
-# USAGE: wallercloud --ping [-p]
-# USAGE: wallercloud --download [-d]
-# USAGE: wallercloud --downloadall [-a]
-# USAGE: wallercloud --upload [-u]
-# USAGE: wallercloud --uploadall [-l]

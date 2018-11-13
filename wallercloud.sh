@@ -1,101 +1,87 @@
 #!/bin/bash
-#
-# function setup() {
-#
-# }
 
-# Set split size to 100mb (100,000,000 bytes)
-FILE_SPLIT_THRESHOLD=100000000
 
-function uploadFile() {
+function uploadPath() {
 
   # Get local directory
-  LOCAL_FILE="$1"
-
+  LOCAL_PATH="$1"
   # Expand ~ character
-  LOCAL_FILE="${LOCAL_FILE/#\~/$HOME}"
-
+  LOCAL_PATH="${LOCAL_PATH/#\~/$HOME}"
   # Get basename
-  LOCAL_FILE_BASENAME="$(basename "$LOCAL_FILE")"
+  BASENAME="$(basename "$LOCAL_PATH")"
 
   # Get remote directory
   if [ $# -eq 2 ]; then
-      CLOUD_DIR="wallercloud:$3"
+    #second argument, if provided, gives a relative path for upload
+    REMOTE_PARENT_DIR="wallercloud:${WALLER_CLOUD_USERNAME}/$2/${BASENAME}_split"
   else
-  	CLOUD_DIR="wallercloud:$WALLER_CLOUD_USERNAME"
+    REMOTE_PARENT_DIR="wallercloud:${WALLER_CLOUD_USERNAME}/${BASENAME}_split"
   fi
+  echo "Uploading to:  $REMOTE_PARENT_DIR"
 
-  # Clean up tmp directory and make
-  rm -rf /tmp/wallercloud/
-  mkdir -p /tmp/wallercloud/
+  #make temporary folder for upload and download
+  TMPDIR="$(dirname "$LOCAL_PATH")/.${BASENAME}_tmp"
+  rm -rf "$TMPDIR"
+  mkdir "$TMPDIR"
 
   #Compress all files in foldername to here
-  COMPRESSED_FILE_PATH="/tmp/wallercloud/$LOCAL_FILE_BASENAME.tar.gz"
+  LOCAL_COMPRESSED_FILE_PATH="$TMPDIR/$BASENAME.tar.gz"
 
   # Make a temporary directory for split files
-  SPLIT_DIR="/tmp/wallercloud/$LOCAL_FILE_BASENAME"_split
-  rm -rf "$SPLIT_DIR"
-  mkdir "$SPLIT_DIR"
+  LOCAL_SPLIT_DIR="$TMPDIR/$BASENAME"_split
+  mkdir -p "$LOCAL_SPLIT_DIR"
 
-  # Check size
-  echo $LOCAL_FILE
-  if [[ $(find "$LOCAL_FILE" -type f -size +"$FILE_SPLIT_THRESHOLD"c 2>/dev/null) ]]; then
+  # tar and compress while showing progress
+  echo "Compressing, hashing, and splitting file"
+  #change directory so long paths dont appear in archive
+  LOCAL_PARENT_DIR="$(dirname "$LOCAL_PATH")"/
+  LOCAL_RELATIVE_PATH=${LOCAL_PATH#"$LOCAL_PARENT_DIR"}
+  tar cf - -C "$LOCAL_PARENT_DIR" "$LOCAL_RELATIVE_PATH"  | pv -s $(du -sk "$LOCAL_PATH" | awk '{print $1}')k | pigz -4 - | tee >(shasum > "${LOCAL_SPLIT_DIR}/${BASENAME}_sha1.txt") | split -b 1024m - "${LOCAL_SPLIT_DIR}/${BASENAME}_fragment"
 
-    # tar and compress while showing progress
-    echo "Compressing, hashing, and splitting file"
+  #delete tar gz file
+  rm -rf "$LOCAL_COMPRESSED_FILE_PATH"
 
-    #change directory so long paths dont appear in archive
-    REMOTE_FILENAME="$(REMOTE_FILENAME "$LOCAL_FILE")"/
-    RELATIVEPATH=${LOCAL_FILE#"$REMOTE_FILENAME"}
-    tar cf - -C "$REMOTE_FILENAME" "$RELATIVEPATH" | pv -s $(du -sk "$LOCAL_FILE" | awk '{print $1}')k | pigz -4 - | tee >(shasum > "${SPLIT_DIR}/${RELATIVE_NAME}_sha1.txt") | split -b 1024m - "${SPLIT_DIR}/${RELATIVE_NAME}_fragment"
-
-    #upload
-    CLOUD_PATH="$CLOUD_DIR/${LOCAL_FILE_BASENAME}_split"
-    echo "Copying to: $CLOUD_PATH"
-    rclone copy "$SPLIT_DIR" "$CLOUD_PATH" -v
-  else
-    # Upload file without chunking
-    CLOUD_PATH="$CLOUD_DIR/${LOCAL_FILE_BASENAME}"
-    echo "Copying $LOCAL_FILE_BASENAME to: $CLOUD_PATH"
-    rclone copy "$LOCAL_FILE" "$CLOUD_PATH" -v
-  fi
-
+  #upload
+  CLOUD_PATH="$REMOTE_PARENT_DIR/${BASENAME}_split"
+  echo "Copying to: $REMOTE_PARENT_DIR"
+  rclone copy "$LOCAL_SPLIT_DIR" "$REMOTE_PARENT_DIR" -v
   #Delete temp files--compressed file and split files
   echo "Cleaning up..."
-  rm -rf "$COMPRESSED_FILE_FULL_PATH"
-  rm -rf "$SPLIT_DIR"
+  rm -rf "$TMPDIR"
   echo "Complete."
 }
 
-function uploadDirectory() {
+function uploadAll() {
+  #Call uploadPath on all files in direcotry and supply a second argument to 
+  #uoloadPath so that it puts each one into relative path determined by the 
+  #first argument to this function
   if [ $# -eq 0 ]; then
       DIRPATH="$(pwd)"
   else
   	DIRPATH="$1"
-  	#add trainling slash if needed
+  	#add trailing slash if needed
   	[[ "${DIRPATH}" != */ ]] && DIRPATH="${DIRPATH}/"
   fi
 
   #just the folder name, not absolute path
-  REMOTE_FILENAME="$(basename "$DIRPATH")"
+  REMOTE_DIR="$(basename "$DIRPATH")"
 
-  for file in "$DIRPATH"/*; do
+  for file in "$DIRPATH"*; do
     echo "Processing:   $file"
-    uploadFile "$file" "$WALLER_CLOUD_USERNAME/$REMOTE_FILENAME"
+    uploadPath "$file" "$REMOTE_DIR"
   done
 }
 
-function downloadFile() {
-
+function download() {
   # Remote path (relative to user folder)
-  REMOTE_PATH=$1
+  REMOTE_PATH="$1"
 
   # Get download folder
-  WALLER_CLOUD_DOWNLOAD_FOLDER=$2
+  WALLER_CLOUD_DOWNLOAD_FOLDER="$2"
 
   # Check if download location is set or if downlaod directory is provided
   if [ -z ${WALLER_CLOUD_DOWNLOAD_FOLDER} ];
-    then echo "Download folder is unset in bash_profile!\n
+    then echo "Download folder is unset in bash_profile!
                You can make this go away by adding the line:
 
                export WALLER_CLOUD_DOWNLOAD_FOLDER=~/Downloads
@@ -108,66 +94,63 @@ function downloadFile() {
 
                Where ~/Downloads is the output directory.
 
-               For now, please provide a download folder:";
+               For now, automatically downloading to current working direcotry:";
 
-               echo -n "Enter local download folder: "
-               read WALLER_CLOUD_DOWNLOAD_FOLDER
+               WALLER_CLOUD_DOWNLOAD_FOLDER="$(pwd)"
+               echo "Downloading to folder: '$WALLER_CLOUD_DOWNLOAD_FOLDER'"
 
-    else echo "Downloading to folder: '$WALLER_CLOUD_DOWNLOAD_FOLDER'"; fi
+  else echo "Downloading to folder: '$WALLER_CLOUD_DOWNLOAD_FOLDER'"; fi
 
   # Generate correct full path
-  REMOTE_PATH_FULL="wallercloud:$WALLER_CLOUD_USERNAME/$REMOTE_PATH"}"
+  REMOTE_PATH_FULL="wallercloud:$WALLER_CLOUD_USERNAME/$REMOTE_PATH"
 
-  # Define temp directory to hold split files
-  REMOTE_FILENAME="$(basename "$REMOTE_PATH")"
+  # get basename that doesn't include _split suffix
+  FOLDERNAME="$(basename "$REMOTE_PATH")"
+  BASENAME="${FOLDERNAME%_split}"
+  #download to tmp hidden folder
+  TMP_DOWNLOAD_PATH="$WALLER_CLOUD_DOWNLOAD_FOLDER/.${BASENAME}_tmp"
+  rm -rf "$TMP_DOWNLOAD_PATH"
+  mkdir -p "$TMP_DOWNLOAD_PATH"
 
-  # Determine if file exists as a split file or a normal (unsplit) file
-
-  # download and reconstruct raw magellan
-
-  # experiment name
-  PREFIX="${REMOTE_FILENAME%_split}"
-  FILENAME="${PREFIX}.tar.gz"
-
+  TARGZ_FULLPATH="$TMP_DOWNLOAD_PATH/$BASENAME.tar.gz"
+ 
   #create experiment date folder
   echo "Checking size..."
-  SIZE=$(rclone size "wallercloud:$REMOTE_PATH" | awk 'FNR == 2 {print $5}' | cut -d'(' -f 2)
+  SIZE=$(rclone size "$REMOTE_PATH_FULL" | awk 'FNR == 2 {print $5}' | cut -d'(' -f 2)
   echo "Downloading..."
-  #download and concatenate into single compressed file
-  rclone --include "*_fragment*" cat "wallercloud:$REMOTE_PATH" | pv -s $SIZE > "${FILENAME}"
+  # download and concatenate into single compressed file
+  rclone --include "*_fragment*" cat "$REMOTE_PATH_FULL" | pv -s $SIZE > "$TARGZ_FULLPATH"
   #download hash of file
-  rclone --include "*sha1.txt" copy "wallercloud:$REMOTE_PATH" "."
-  #compute hash on reconstructed file
+  rclone --include "*sha1.txt" copy "$REMOTE_PATH_FULL" "$TMP_DOWNLOAD_PATH"
+  compute hash on reconstructed file
   echo "Computing hash on reconstructed file"
-  pv "${FILENAME}" | shasum > "${PREFIX}_sha1_reconstructed.txt"
+  RECON_HASH_PATH="$TMP_DOWNLOAD_PATH/${BASENAME}_sha1_reconstructed.txt"
+  ORIG_HASH_PATH="$TMP_DOWNLOAD_PATH/${BASENAME}_sha1.txt"
+  pv "${TARGZ_FULLPATH}" | shasum > "$RECON_HASH_PATH"
   #check if hashed are equal, if so clean up
-  if cmp -n 40 -s "${PREFIX}_sha1_reconstructed.txt" "${PREFIX}_sha1.txt" ; then
+  if cmp -n 40 -s "$RECON_HASH_PATH" "$ORIG_HASH_PATH" ; then
   	echo "SHAs match, cleaning up..."
   	#delete hash file
-  	rm "${PREFIX}_sha1_reconstructed.txt"
-  	rm "${PREFIX}_sha1.txt"
+  	rm "$RECON_HASH_PATH"
+  	rm "$ORIG_HASH_PATH"
   	#unzip and untar file, showing progress
   	echo "Decompressing..."
-  	pv "${FILENAME}" | pigz -dc - | tar -xf -
+  	pv "${TARGZ_FULLPATH}" | pigz -dc - | tar -xf -
 
   	#delete the compressed version
-  	echo "Deleting compressed version..."
-  	# rm "${FILENAME}"
+  	echo "Deleting tmp files..."
+  	rm -rf "$TMP_DOWNLOAD_PATH"
   	echo "Finished"
   else
   	echo "Error: SHA1s don't match"
   fi
+
 }
 
-function downloadDirectory() {
-
+function downloadAll() {
+  echo "$1"
   # Build directory path
-  DIRPATH="wallercloud:$WALLER_CLOUD_USERNAME/$1"
-
-  # Remove trailing slash if present
-  length=${#DIRPATH}
-  last_char=${DIRPATH:length-1:1}
-  [[ $last_char == "/" ]] && DIRPATH=${DIRPATH:0:length-1}; :
+  DIRPATH="$1"
 
   # Build relative path
   RELATIVE_NAME="$(basename "$DIRPATH")"
@@ -185,9 +168,9 @@ function downloadDirectory() {
 
   # Dont split on whitespace
   IFS=$'\n'
-  for file in $(rclone lsf "$DIRPATH"); do
+  for file in $(rclone lsf "wallercloud:$WALLER_CLOUD_USERNAME/$DIRPATH"); do
     echo "Processing:   $DIRPATH/$file"
-    downloadFile "$DIRPATH/$file"
+    download "$DIRPATH/$file"
   done
   unset IFS
 }
@@ -214,14 +197,18 @@ function check_username() {
 function show_help() {
   echo "USAGE:"
   echo "   wallercloud --help   :   Shows this information."
-  echo "   wallercloud --ls [dir]  :   Lists all files in a remote dir."
+  echo "   wallercloud --ls (-l) [dir]  :   Lists all files in a remote dir."
   echo "   wallercloud --download (-d) :   Downloads a path/file the remote server."
-  echo "   wallercloud --upload (-u) :   Uploads a path/file the remote server."
+  echo "   wallercloud --upload (-u) [path to file or directory]:   Uploads a path/file"
+  echo "   the remote server. Uses current working directory if none supplied"
+  echo "   wallercloud --upload-all (-a) [path to file or directory]:   Uploads all"
+  echo "   paths/files in directory the remote server. Uses current working directory if none supplied"
+
 }
 
 # List directories on remote
 function list_dir() {
-  rclone lsd wallercloud:${WALLER_CLOUD_USERNAME}/$1
+  rclone lsf "wallercloud:${WALLER_CLOUD_USERNAME}/$1"
 }
 
 # Show help if command is passed with no arguments
@@ -240,15 +227,20 @@ case $key in
     # Check username
     check_username
 
-    downloadDirectory $2
-    # if [[ -d $2 ]]; then
-    #     downloadDirectory $2
-    # elif [[ -f $2 ]]; then
-    #     downloadFile $2
-    # else
-    #     echo "$2 is not a valid path to a file or directory!"
-    #     exit 1
-    # fi
+    # Remove trailing slash if present
+    ARG2="$2"
+    length=${#ARG2}
+    last_char=${ARG2:length-1:1}
+    [[ $last_char == "/" ]] && ARG2=${ARG2:0:length-1}; :
+
+    #assume its a directory
+    if [[ "$ARG2" == *_split ]]; then
+      download "$ARG2"
+    else
+      #its should be a directory contaiing a bunch of split directories
+      downloadAll "$ARG2"
+    fi    
+
     shift # past argument
     shift # past value
     ;;
@@ -256,13 +248,31 @@ case $key in
     # Check username
     check_username
 
-    if [[ -d $2 ]]; then
-        echo HERE1
-        uploadDirectory $2
-    elif [[ -f $2 ]]; then
-        uploadFile $2
+    if [ $# -eq 1 ]; then
+        #if no argument supplied use current working directory
+        uploadPath "$(pwd)"
+    elif [[ -d "$2" ]]; then 
+        uploadPath "$2"
+    elif [[ -f "$2" ]]; then
+        uploadPath "$2"
     else
         echo "$2 is not a valid path to a file or directory!"
+        exit 1
+    fi
+    shift # past argument
+    shift # past value
+    ;;
+    -a|--upload-all)
+    # Check username
+    check_username
+
+    if [ $# -eq 1 ]; then
+        #if no argument supplied use current working directory
+        uploadAll  "$(pwd)"
+    elif [[ -d "$2" ]]; then 
+        uploadAll "$2"
+    else
+        echo "$2 is not a valid path to a directory!"
         exit 1
     fi
     shift # past argument
@@ -278,11 +288,11 @@ case $key in
     shift # past argument
     shift # past value
     ;;
-    ls|--ls)
+    -l|--ls)
     # Check username
     check_username
 
-    list_dir $2
+    list_dir "$2"
     shift # past argument
     shift # past value
     ;;
@@ -300,7 +310,7 @@ set -- "${POSITIONAL[@]}" # restore positional parameters
 
 
 
-if [[ -n $1 ]]; then
+if [[ -n "$1" ]]; then
     echo "Last line of file specified as non-opt/last argument:"
     tail -1 "$1"
 fi
