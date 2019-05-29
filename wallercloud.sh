@@ -178,8 +178,8 @@ function decompress() {
 }
 
 function download() {
-  downloadOnly 
-  decompress
+  downloadOnly "$1" "$2"
+  decompress "$1" "$2"
 }
 
 function downloadAll() {
