@@ -72,7 +72,7 @@ function uploadAll() {
   done
 }
 
-function download() {
+function downloadOnly() {
   # Remote path (relative to user folder)
   REMOTE_PATH="$1"
 
@@ -83,19 +83,12 @@ function download() {
   if [ -z ${WALLER_CLOUD_DOWNLOAD_FOLDER} ];
     then echo "Download folder is unset in bash_profile!
                You can make this go away by adding the line:
-
                export WALLER_CLOUD_DOWNLOAD_FOLDER=~/Downloads
-
                to your ~/.bash_profile variable (on OSX) or ~/.bashrc on Linux.
-
                You can also specifiy the download folder as a second argument:
-
                wallercloud -d data/data.tiff ~/Downloads
-
                Where ~/Downloads is the output directory.
-
                For now, automatically downloading to current working direcotry:";
-
                WALLER_CLOUD_DOWNLOAD_FOLDER="$(pwd)"
                echo "Downloading to folder: '$WALLER_CLOUD_DOWNLOAD_FOLDER'"
 
@@ -109,7 +102,7 @@ function download() {
   BASENAME="${FOLDERNAME%_split}"
   #download to tmp hidden folder
   TMP_DOWNLOAD_PATH="$WALLER_CLOUD_DOWNLOAD_FOLDER/.${BASENAME}_tmp"
-  rm -rf "$TMP_DOWNLOAD_PATH"
+  # rm -rf "$TMP_DOWNLOAD_PATH"
   mkdir -p "$TMP_DOWNLOAD_PATH"
 
   TARGZ_FULLPATH="$TMP_DOWNLOAD_PATH/$BASENAME.tar.gz"
@@ -117,34 +110,76 @@ function download() {
   #create experiment date folder
   echo "Checking size..."
   SIZE=$(rclone size "$REMOTE_PATH_FULL" | awk 'FNR == 2 {print $5}' | cut -d'(' -f 2)
+  echo "Total size: "
+  echo "$SIZE" | awk '{ foo = $1 / 1024 / 1024 / 1024; print foo "GB" }'
   echo "Downloading..."
   # download and concatenate into single compressed file
-  rclone --include "*_fragment*" cat "$REMOTE_PATH_FULL" | pv -s $SIZE > "$TARGZ_FULLPATH"
+
+  # rclone --include "*_fragment*" cat "$REMOTE_PATH_FULL" | pv -s $SIZE > "$TARGZ_FULLPATH"
+  rclone --include "*_fragment*" copy "$REMOTE_PATH_FULL" "$TMP_DOWNLOAD_PATH"
+  #concatenate
+  cat "$TMP_DOWNLOAD_PATH"/* > "$TARGZ_FULLPATH"
   #download hash of file
   rclone --include "*sha1.txt" copy "$REMOTE_PATH_FULL" "$TMP_DOWNLOAD_PATH"
-  compute hash on reconstructed file
+}
+
+function decompress() {
+  # Remote path (relative to user folder)
+  REMOTE_PATH="$1"
+
+  # Get download folder
+  WALLER_CLOUD_DOWNLOAD_FOLDER="$2"
+
+  # Check if download location is set or if downlaod directory is provided
+  if [ -z ${WALLER_CLOUD_DOWNLOAD_FOLDER} ];
+    then echo "Download folder is unset in bash_profile!
+               You can make this go away by adding the line:
+               export WALLER_CLOUD_DOWNLOAD_FOLDER=~/Downloads
+               to your ~/.bash_profile variable (on OSX) or ~/.bashrc on Linux.
+               You can also specifiy the download folder as a second argument:
+               wallercloud -d data/data.tiff ~/Downloads
+               Where ~/Downloads is the output directory.
+               For now, automatically downloading to current working direcotry:";
+               WALLER_CLOUD_DOWNLOAD_FOLDER="$(pwd)"
+               echo "Using data downloaded to folder: '$WALLER_CLOUD_DOWNLOAD_FOLDER'"
+
+  else echo "Using data downloaded to folder: '$WALLER_CLOUD_DOWNLOAD_FOLDER'"; fi
+
+  # get basename that doesn't include _split suffix
+  FOLDERNAME="$(basename "$REMOTE_PATH")"
+  BASENAME="${FOLDERNAME%_split}"
+
+  #download to tmp hidden folder
+  TMP_DOWNLOAD_PATH="$WALLER_CLOUD_DOWNLOAD_FOLDER/.${BASENAME}_tmp"
+  TARGZ_FULLPATH="$TMP_DOWNLOAD_PATH/$BASENAME.tar.gz"
+ 
+  # compute hash on reconstructed file
   echo "Computing hash on reconstructed file"
   RECON_HASH_PATH="$TMP_DOWNLOAD_PATH/${BASENAME}_sha1_reconstructed.txt"
-  ORIG_HASH_PATH="$TMP_DOWNLOAD_PATH/${BASENAME}_sha1.txt"
-  pv "${TARGZ_FULLPATH}" | shasum > "$RECON_HASH_PATH"
+  # ORIG_HASH_PATH="$TMP_DOWNLOAD_PATH/${BASENAME}_sha1.txt"
+  # use wildcard search to enable backwards compatibility with older versions
+  ORIG_HASH_PATH="$(ls "$TMP_DOWNLOAD_PATH/"*"_sha1.txt")"
+  # pv "${TARGZ_FULLPATH}" | shasum > "$RECON_HASH_PATH"
+  shasum "${TARGZ_FULLPATH}" > "$RECON_HASH_PATH"
   #check if hashed are equal, if so clean up
   if cmp -n 40 -s "$RECON_HASH_PATH" "$ORIG_HASH_PATH" ; then
-  	echo "SHAs match, cleaning up..."
-  	#delete hash file
-  	rm "$RECON_HASH_PATH"
-  	rm "$ORIG_HASH_PATH"
-  	#unzip and untar file, showing progress
-  	echo "Decompressing..."
-  	pv "${TARGZ_FULLPATH}" | pigz -dc - | tar -xf -
-
-  	#delete the compressed version
-  	echo "Deleting tmp files..."
-  	rm -rf "$TMP_DOWNLOAD_PATH"
-  	echo "Finished"
+    echo "SHAs match, cleaning up..."
+    #unzip and untar file, showing progress
+    echo "Decompressing..."
+    # pv "${TARGZ_FULLPATH}" | pigz -dc - | tar -xf -
+    gzip -d < "${TARGZ_FULLPATH}" | tar xvf -
+    #delete the compressed version
+    echo "Deleting tmp files..."
+    rm -rf "$TMP_DOWNLOAD_PATH"
+    echo "Finished"
   else
-  	echo "Error: SHA1s don't match"
+    echo "Error: SHA1s don't match"
   fi
+}
 
+function download() {
+  downloadOnly 
+  decompress
 }
 
 function downloadAll() {
@@ -203,6 +238,8 @@ function show_help() {
   echo "   the remote server. Uses current working directory if none supplied"
   echo "   wallercloud --upload-all (-a) [path to file or directory]:   Uploads all"
   echo "   paths/files in directory the remote server. Uses current working directory if none supplied"
+  echo "   wallercloud --download-only (-o) [path to file or directory]:  Only downloads and cats but doesnt check or deomcpress"
+  echo "   wallercloud --decompress-extract (-x) [path to file or directory]:  used after download only"
 
 }
 
@@ -217,7 +254,7 @@ if [[ $# -eq 0 ]] ; then
     exit 0
 fi
 
-POSITIONAL=()
+#loop through sets of arguments and take action
 while [[ $# -gt 0 ]]
 do
 key="$1"
@@ -237,8 +274,50 @@ case $key in
     if [[ "$ARG2" == *_split ]]; then
       download "$ARG2"
     else
-      #its should be a directory contaiing a bunch of split directories
+      #its should be a directory containing a bunch of split directories
       downloadAll "$ARG2"
+    fi    
+
+    shift # past argument
+    shift # past value
+    ;;
+    -o|--download-only)
+    # Check username
+    check_username
+
+    # Remove trailing slash if present
+    ARG2="$2"
+    length=${#ARG2}
+    last_char=${ARG2:length-1:1}
+    [[ $last_char == "/" ]] && ARG2=${ARG2:0:length-1}; :
+
+    #assume its a directory
+    if [[ "$ARG2" == *_split ]]; then
+      downloadOnly "$ARG2"
+    else
+      #its should be a directory containing a bunch of split directories
+      echo "Error: download only is only implemented for split directories"
+    fi    
+
+    shift # past argument
+    shift # past value
+    ;;
+    -x|--decompress-extract)
+    # Check username
+    check_username
+
+    # Remove trailing slash if present
+    ARG2="$2"
+    length=${#ARG2}
+    last_char=${ARG2:length-1:1}
+    [[ $last_char == "/" ]] && ARG2=${ARG2:0:length-1}; :
+
+    #assume its a directory
+    if [[ "$ARG2" == *_split ]]; then
+      decompress "$ARG2"
+    else
+      #its should be a directory containing a bunch of split directories
+      echo "Error: decompress-extract is only implemented for split directories"
     fi    
 
     shift # past argument
@@ -296,21 +375,7 @@ case $key in
     shift # past argument
     shift # past value
     ;;
-    --default)
-    DEFAULT=YES
-    shift # past argument
-    ;;
-    *)    # unknown option
-    POSITIONAL+=("$1") # save it in an array for later
-    shift # past argument
-    ;;
 esac
 done
-set -- "${POSITIONAL[@]}" # restore positional parameters
 
 
-
-if [[ -n "$1" ]]; then
-    echo "Last line of file specified as non-opt/last argument:"
-    tail -1 "$1"
-fi
