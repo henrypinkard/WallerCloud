@@ -20,7 +20,7 @@ function uploadPath() {
   echo "Uploading to:  $REMOTE_PARENT_DIR"
 
   #make temporary folder for upload and download
-  TMPDIR="$(dirname "$LOCAL_PATH")/.${BASENAME}_tmp"
+  TMPDIR="$(dirname "$LOCAL_PATH")/${BASENAME}_tmp"
   rm -rf "$TMPDIR"
   mkdir "$TMPDIR"
 
