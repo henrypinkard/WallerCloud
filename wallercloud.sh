@@ -150,7 +150,7 @@ function decompress() {
   BASENAME="${FOLDERNAME%_split}"
 
   #download to tmp hidden folder
-  TMP_DOWNLOAD_PATH="$WALLER_CLOUD_DOWNLOAD_FOLDER/.${BASENAME}_tmp"
+  TMP_DOWNLOAD_PATH="$WALLER_CLOUD_DOWNLOAD_FOLDER/${BASENAME}_tmp"
   TARGZ_FULLPATH="$TMP_DOWNLOAD_PATH/$BASENAME.tar.gz"
  
   # compute hash on reconstructed file
