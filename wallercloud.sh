@@ -36,6 +36,8 @@ function uploadPath() {
   #change directory so long paths dont appear in archive
   LOCAL_PARENT_DIR="$(dirname "$LOCAL_PATH")"/
   LOCAL_RELATIVE_PATH=${LOCAL_PATH#"$LOCAL_PARENT_DIR"}
+  #alias this because they have different names on linux and mac
+  alias shasum=sha1sum
   tar cf - -C "$LOCAL_PARENT_DIR" "$LOCAL_RELATIVE_PATH"  | pv -s $(du -sk "$LOCAL_PATH" | awk '{print $1}')k | pigz -4 - | tee >(shasum > "${LOCAL_SPLIT_DIR}/${BASENAME}_sha1.txt") | split -b 1024m - "${LOCAL_SPLIT_DIR}/${BASENAME}_fragment"
 
   #delete tar gz file
@@ -159,6 +161,8 @@ function decompress() {
   # ORIG_HASH_PATH="$TMP_DOWNLOAD_PATH/${BASENAME}_sha1.txt"
   # use wildcard search to enable backwards compatibility with older versions
   ORIG_HASH_PATH="$(ls "$TMP_DOWNLOAD_PATH/"*"_sha1.txt")"
+  #alias this because they have different names on linux and mac
+  alias shasum=sha1sum
   # pv "${TARGZ_FULLPATH}" | shasum > "$RECON_HASH_PATH"
   shasum "${TARGZ_FULLPATH}" > "$RECON_HASH_PATH"
   #check if hashed are equal, if so clean up
