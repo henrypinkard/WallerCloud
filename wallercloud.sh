@@ -101,7 +101,7 @@ function downloadOnly() {
   FOLDERNAME="$(basename "$REMOTE_PATH")"
   BASENAME="${FOLDERNAME%_split}"
   #download to tmp hidden folder
-  TMP_DOWNLOAD_PATH="$WALLER_CLOUD_DOWNLOAD_FOLDER/.${BASENAME}_tmp"
+  TMP_DOWNLOAD_PATH="$WALLER_CLOUD_DOWNLOAD_FOLDER/${BASENAME}_tmp"
   # rm -rf "$TMP_DOWNLOAD_PATH"
   mkdir -p "$TMP_DOWNLOAD_PATH"
 
