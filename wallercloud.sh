@@ -21,9 +21,9 @@ function uploadPath() {
   # Get remote directory
   if [ $# -eq 2 ]; then
     #second argument, if provided, gives a relative path for upload
-    REMOTE_PARENT_DIR="wallercloud:${WALLER_CLOUD_USERNAME}/$2/${BASENAME}_split"
+    REMOTE_PARENT_DIR=":${WALLER_CLOUD_USERNAME}/$2/${BASENAME}_split"
   else
-    REMOTE_PARENT_DIR="wallercloud:${WALLER_CLOUD_USERNAME}/${BASENAME}_split"
+    REMOTE_PARENT_DIR=":${WALLER_CLOUD_USERNAME}/${BASENAME}_split"
   fi
   echo "Uploading to:  $REMOTE_PARENT_DIR"
 
@@ -50,10 +50,32 @@ function uploadPath() {
   #delete tar gz file
   rm -rf "$LOCAL_COMPRESSED_FILE_PATH"
 
+
   #upload
-  CLOUD_PATH="$REMOTE_PARENT_DIR/${BASENAME}_split"
-  echo "Copying to: $REMOTE_PARENT_DIR"
-  rclone copy "$LOCAL_SPLIT_DIR" "$REMOTE_PARENT_DIR" -v
+  REMOTE_NAME="wallercloud"
+  CLOUD_PATH="$REMOTE_NAME$REMOTE_PARENT_DIR/${BASENAME}_split"
+  echo "Copying: $CLOUD_PATH"
+
+  #alternate between wallercloud and other remotes
+  i="0"
+  MAX_NUM_REMOTES=4
+  until rclone check "$LOCAL_SPLIT_DIR" "$REMOTE_PARENT_DIR" -q
+  do
+    if [ $i -eq 0 ]; then
+      #second argument, if provided, gives a relative path for upload
+        REMOTE_NAME=wallercloud
+      else
+        REMOTE_NAME=wallerdata$[$i-1]
+      fi
+    echo $REMOTE_NAME
+    #do up to 100GB of copying
+    rclone copy "$LOCAL_SPLIT_DIR" "$REMOTE_PARENT_DIR" --max-transfer 100G -v
+
+    #increment
+    i=$[$i+1]
+    i=$(( $i % $MAX_NUM_REMOTES ))
+  done
+
   #Delete temp files--compressed file and split files
   echo "Cleaning up..."
   rm -rf "$TMPDIR"
