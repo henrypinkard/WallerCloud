@@ -2,10 +2,10 @@
 
 #alias for linuz systems
 function hash() {
-  if [[ "$OSTYPE" == "linux"* ]]; then
-   sha1sum "$1"
+if [[ "$OSTYPE" == "linux"* ]]; then
+   sha1sum $1 
   else
-   shasum "$1"
+   shasum $1 
   fi
 }
 
@@ -45,9 +45,11 @@ function uploadPath() {
   LOCAL_PARENT_DIR="$(dirname "$LOCAL_PATH")"/
   LOCAL_RELATIVE_PATH=${LOCAL_PATH#"$LOCAL_PARENT_DIR"}
   #alias this because they have different names on linux and mac
-  tar cf - -C "$LOCAL_PARENT_DIR" "$LOCAL_RELATIVE_PATH"  | pv -s $(du -sk "$LOCAL_PATH" | awk '{print $1}')k | pigz -4 - | tee >(hash > "${LOCAL_SPLIT_DIR}/${BASENAME}_sha1.txt") | split -b 1024m - "${LOCAL_SPLIT_DIR}/${BASENAME}_fragment"
+  
+ tar cf - -C "$LOCAL_PARENT_DIR" "$LOCAL_RELATIVE_PATH"  | pv -s $(du -sk "$LOCAL_PATH" | awk '{print $1}')k  | pigz -4 - | tee >(sha1sum > "${LOCAL_SPLIT_DIR}/${BASENAME}_sha1.txt") | split -b 1024m - "${LOCAL_SPLIT_DIR}/${BASENAME}_fragment"
 
-  #delete tar gz file
+
+ #delete tar gz file
   rm -rf "$LOCAL_COMPRESSED_FILE_PATH"
 
 
@@ -59,7 +61,7 @@ function uploadPath() {
   #alternate between wallercloud and other remotes
   i="0"
   MAX_NUM_REMOTES=4
-  until rclone check "$LOCAL_SPLIT_DIR" "$REMOTE_PARENT_DIR" -q
+  until rclone check "$LOCAL_SPLIT_DIR" "$CLOUD_PATH" -q
   do
     if [ $i -eq 0 ]; then
       #second argument, if provided, gives a relative path for upload
@@ -69,7 +71,7 @@ function uploadPath() {
       fi
     echo $REMOTE_NAME
     #do up to 100GB of copying
-    rclone copy "$LOCAL_SPLIT_DIR" "$REMOTE_PARENT_DIR" --max-transfer 100G -v
+    rclone copy "$LOCAL_SPLIT_DIR" "$CLOUD_PATH" --max-transfer 100G -v
 
     #increment
     i=$[$i+1]
