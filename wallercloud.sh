@@ -62,7 +62,7 @@ function uploadPath() {
   #alternate between wallercloud and other remotes
   i="0"
   MAX_NUM_REMOTES=4
-  until rclone check "$LOCAL_SPLIT_DIR" "$REMOTE_PARENT_DIR" -q
+  until rclone check "$LOCAL_SPLIT_DIR" "$CLOUD_PATH" -q
   do
     if [ $i -eq 0 ]; then
       #second argument, if provided, gives a relative path for upload
@@ -72,7 +72,7 @@ function uploadPath() {
       fi
     echo $REMOTE_NAME
     #do up to 100GB of copying
-    rclone copy "$LOCAL_SPLIT_DIR" "$REMOTE_PARENT_DIR" --max-transfer 100G -v
+    rclone copy "$LOCAL_SPLIT_DIR" "$CLOUD_PATH" --max-transfer 100G -v
 
     #increment
     i=$[$i+1]
