@@ -55,9 +55,6 @@ function uploadPath() {
 
 
   #upload
-  REMOTE_NAME="wallercloud"
-  CLOUD_PATH="$REMOTE_NAME$REMOTE_PARENT_DIR/${BASENAME}_split"
-  echo "Copying: $CLOUD_PATH"
 
   #alternate between wallercloud and other remotes
   i="$((RANDOM % 4))"
@@ -70,8 +67,10 @@ function uploadPath() {
       else
         REMOTE_NAME=wallerdata$[$i-1]
       fi
-    echo $REMOTE_NAME
-    #do up to 100GB of copying
+    
+  CLOUD_PATH="$REMOTE_NAME$REMOTE_PARENT_DIR"
+  echo "Copying:  $REMOTE $CLOUD_PATH"
+      #do up to 100GB of copying
     rclone copy "$LOCAL_SPLIT_DIR" "$CLOUD_PATH" --max-transfer 100G -v
 
     #increment
