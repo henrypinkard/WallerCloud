@@ -60,7 +60,7 @@ function uploadPath() {
   echo "Copying: $CLOUD_PATH"
 
   #alternate between wallercloud and other remotes
-  i="0"
+  i="$((RANDOM % 4))"
   MAX_NUM_REMOTES=4
   until rclone check "$LOCAL_SPLIT_DIR" "$CLOUD_PATH" -q
   do
