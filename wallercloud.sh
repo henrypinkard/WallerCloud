@@ -17,7 +17,9 @@ function uploadPath() {
   LOCAL_PATH="${LOCAL_PATH/#\~/$HOME}"
   # Get basename
   BASENAME="$(basename "$LOCAL_PATH")"
-
+  #remove extension so rclone doesnt complain
+  BASENAME="${BASENAME%.*}"  
+  echo $BASENAME
   # Get remote directory
   if [ $# -eq 2 ]; then
     #second argument, if provided, gives a relative path for upload
@@ -47,7 +49,6 @@ function uploadPath() {
   #alias this because they have different names on linux and mac
   
  tar cf - -C "$LOCAL_PARENT_DIR" "$LOCAL_RELATIVE_PATH"  | pv -s $(du -sk "$LOCAL_PATH" | awk '{print $1}')k  | pigz -4 - | tee >(sha1sum > "${LOCAL_SPLIT_DIR}/${BASENAME}_sha1.txt") | split -b 1024m - "${LOCAL_SPLIT_DIR}/${BASENAME}_fragment"
-
 
  #delete tar gz file
   rm -rf "$LOCAL_COMPRESSED_FILE_PATH"
