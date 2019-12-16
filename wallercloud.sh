@@ -3,9 +3,9 @@
 #alias for linuz systems
 function hash() {
 if [[ "$OSTYPE" == "linux"* ]]; then
-   sha1sum $1 
+   sha1sum "$1" 
   else
-   shasum $1 
+   shasum "$1" 
   fi
 }
 
