@@ -198,6 +198,7 @@ function decompress() {
   #check if hashed are equal, if so clean up
   if cmp -n 40 -s "$RECON_HASH_PATH" "$ORIG_HASH_PATH" ; then
     echo "SHAs match, cleaning up..."
+    rm -f "$TMP_DOWNLOAD_PATH/*_fragment*"
     #unzip and untar file, showing progress
     echo "Decompressing..."
     # pv "${TARGZ_FULLPATH}" | pigz -dc - | tar -xf -
