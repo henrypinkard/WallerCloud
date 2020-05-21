@@ -152,7 +152,7 @@ function downloadOnly() {
   rclone --include "*_fragment*" copy "$REMOTE_PATH_FULL" "$TMP_DOWNLOAD_PATH"
   echo "Recombining into tar.gz..."
   #concatenate
-  cat "$TMP_DOWNLOAD_PATH"/"*" > "$TARGZ_FULLPATH"
+  cat "$TMP_DOWNLOAD_PATH"/*"_fragment"* > "$TARGZ_FULLPATH"
   #download hash of file
   rclone --include "*sha1.txt" copy "$REMOTE_PATH_FULL" "$TMP_DOWNLOAD_PATH"
 }
